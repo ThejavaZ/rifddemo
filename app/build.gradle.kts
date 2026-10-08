@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.javiersg.rfiddemo"
-        minSdk = 24
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -57,4 +57,5 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.0")
     ksp("androidx.room:room-compiler:2.7.0")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
 }
