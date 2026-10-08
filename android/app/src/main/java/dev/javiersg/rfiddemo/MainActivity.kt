@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: RfidViewModel by viewModels {
         val appContainer = (application as RfidApplication).container
-        RfidViewModel.provideFactory(appContainer.rfidRepository)
+        RfidViewModel.provideFactory(appContainer.localTagRepository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

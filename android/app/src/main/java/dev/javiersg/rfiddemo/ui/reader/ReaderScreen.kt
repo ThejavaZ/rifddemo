@@ -1,5 +1,6 @@
 package dev.javiersg.rfiddemo.ui.reader
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,20 +10,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.javiersg.rfiddemo.domain.model.ReaderStatus
@@ -31,6 +38,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     viewModel: ReaderViewModel,
@@ -39,7 +47,18 @@ fun ReaderScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Lector RFID") },
+                actions = {
+                    ConnectionBadge(
+                        status = uiState.status,
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                }
+            )
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -48,9 +67,10 @@ fun ReaderScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ConnectionHeader(
+            ConnectionControls(
                 status = uiState.status,
-                onToggleConnection = { viewModel.toggleConnection() }
+                onConnect = { viewModel.onConnect() },
+                onDisconnect = { viewModel.onDisconnect() }
             )
 
             MetricsBar(
@@ -64,14 +84,21 @@ fun ReaderScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                if (uiState.tags.isEmpty()) {
-                    Text(
-                        text = "No se han detectado lectura de tags.",
-                        style = MaterialTheme.typography.bodyMedium,
+                when {
+                    uiState.errorMessage != null -> ErrorState(
+                        message = uiState.errorMessage.orEmpty(),
                         modifier = Modifier.align(Alignment.Center)
                     )
-                } else {
-                    LazyColumn(
+
+                    uiState.status == ReaderStatus.CONNECTING -> LoadingState(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+
+                    uiState.tags.isEmpty() -> EmptyState(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+
+                    else -> LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
@@ -84,64 +111,105 @@ fun ReaderScreen(
                 }
             }
 
-            Button(
-                onClick = { viewModel.toggleScanning() },
-                enabled = uiState.status == ReaderStatus.CONNECTED ||
-                    uiState.status == ReaderStatus.SCANNING,
-                modifier = Modifier.fillMaxWidth()
+            ScanControls(
+                status = uiState.status,
+                onStartScan = { viewModel.onStartScan() },
+                onStopScan = { viewModel.onStopScan() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConnectionBadge(
+    status: ReaderStatus,
+    modifier: Modifier = Modifier
+) {
+    val (label, color) = when (status) {
+        ReaderStatus.DISCONNECTED -> "Desconectado" to MaterialTheme.colorScheme.outline
+        ReaderStatus.CONNECTING -> "Conectando" to MaterialTheme.colorScheme.tertiary
+        ReaderStatus.CONNECTED -> "Conectado" to MaterialTheme.colorScheme.primary
+        ReaderStatus.SCANNING -> "Escaneando" to MaterialTheme.colorScheme.tertiary
+        ReaderStatus.ERROR -> "Error" to MaterialTheme.colorScheme.error
+    }
+
+    Row(
+        modifier = modifier
+            .background(
+                color = color.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(50)
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color = color, shape = CircleShape)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = color
+        )
+    }
+}
+
+@Composable
+private fun ConnectionControls(
+    status: ReaderStatus,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit
+) {
+    val connected = status == ReaderStatus.CONNECTED || status == ReaderStatus.SCANNING
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (connected) {
+            OutlinedButton(
+                onClick = onDisconnect,
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = if (uiState.isScanning) "DETENER LECTURA" else "INICIAR LECTURA"
-                )
+                Text("Desconectar")
+            }
+        } else {
+            OutlinedButton(
+                onClick = onConnect,
+                enabled = status != ReaderStatus.CONNECTING,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Conectar")
             }
         }
     }
 }
 
 @Composable
-private fun ConnectionHeader(
+private fun ScanControls(
     status: ReaderStatus,
-    onToggleConnection: () -> Unit
+    onStartScan: () -> Unit,
+    onStopScan: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Button(
+            onClick = onStartScan,
+            enabled = status == ReaderStatus.CONNECTED,
+            modifier = Modifier.weight(1f)
         ) {
-            Column {
-                Text(
-                    text = "Estado del Lector",
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Text(
-                    text = status.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            when (status) {
-                ReaderStatus.CONNECTING -> {
-                    CircularProgressIndicator(modifier = Modifier.height(24.dp))
-                }
-                ReaderStatus.CONNECTED, ReaderStatus.SCANNING -> {
-                    OutlinedButton(onClick = onToggleConnection) {
-                        Text(text = "Desconectar")
-                    }
-                }
-                ReaderStatus.DISCONNECTED, ReaderStatus.ERROR -> {
-                    OutlinedButton(onClick = onToggleConnection) {
-                        Text(text = "Conectar")
-                    }
-                }
-            }
+            Text("Start")
+        }
+        OutlinedButton(
+            onClick = onStopScan,
+            enabled = status == ReaderStatus.SCANNING,
+            modifier = Modifier.weight(1f)
+        ) {
+            Text("Stop")
         }
     }
 }
@@ -170,6 +238,35 @@ private fun MetricsBar(
         OutlinedButton(onClick = onClearTags) {
             Text("Limpiar")
         }
+    }
+}
+
+@Composable
+private fun EmptyState(modifier: Modifier = Modifier) {
+    Text(
+        text = "No se han detectado lectura de tags.",
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun LoadingState(modifier: Modifier = Modifier) {
+    CircularProgressIndicator(modifier = modifier)
+}
+
+@Composable
+private fun ErrorState(message: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }
 

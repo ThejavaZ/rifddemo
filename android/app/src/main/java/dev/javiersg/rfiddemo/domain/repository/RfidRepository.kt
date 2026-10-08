@@ -1,13 +1,16 @@
 package dev.javiersg.rfiddemo.domain.repository
 
-import dev.javiersg.rfiddemo.data.local.SyncStatus
-import dev.javiersg.rfiddemo.data.local.entity.RfidTagEntity
+import dev.javiersg.rfiddemo.domain.model.ReaderStatus
+import dev.javiersg.rfiddemo.domain.model.RfidTag
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface RfidRepository {
-    fun getTags(): Flow<List<RfidTagEntity>>
-    suspend fun processScannedTag(epc: String, rssi: Int, antenna: Int)
-    suspend fun getPendingSyncTags(): List<RfidTagEntity>
-    suspend fun markAsSynced(epcs: List<String>)
-    suspend fun clearTags()
+    val readerStatus: StateFlow<ReaderStatus>
+    val tags: Flow<RfidTag>
+
+    suspend fun connect()
+    suspend fun disconnect()
+    suspend fun startReading()
+    suspend fun stopReading()
 }

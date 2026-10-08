@@ -1,68 +1,25 @@
 package dev.javiersg.rfiddemo.data.repository
 
-import dev.javiersg.rfiddemo.data.local.dao.RfidTagDao
-import dev.javiersg.rfiddemo.data.local.entity.RfidTagEntity
-import dev.javiersg.rfiddemo.domain.hardware.RfidReaderService
+import dev.javiersg.rfiddemo.domain.model.ReaderStatus
+import dev.javiersg.rfiddemo.domain.model.RfidTag
+import dev.javiersg.rfiddemo.domain.repository.IRfidReader
 import dev.javiersg.rfiddemo.domain.repository.RfidRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.StateFlow
 
 class RfidRepositoryImpl(
-    private val rfidTagDao: RfidTagDao,
-    private val rfidReaderService: RfidReaderService
+    private val reader: IRfidReader
 ) : RfidRepository {
 
-    private val scope = CoroutineScope(Dispatchers.IO)
-    private val scannedEpcsCache = ConcurrentHashMap.newKeySet<String>()
+    override val readerStatus: StateFlow<ReaderStatus> = reader.readerStatus
 
-    init {
-        observeAndBatchScans()
-    }
+    override val tags: Flow<RfidTag> = reader.tagFlow
 
-    private fun observeAndBatchScans() {
-        scope.launch {
-            rfidReaderService.scannedTags
-                .buffer(capacity = 100)
-                .collect { tagEvent ->
-                    processScannedTag(
-                        epc = tagEvent.epc,
-                        rssi = tagEvent.rssi,
-                        antenna = 1
-                    )
-                }
-        }
-    }
+    override suspend fun connect() = reader.connect()
 
-    override fun getTags(): Flow<List<RfidTagEntity>> {
-        return rfidTagDao.getAllTags()
-    }
+    override suspend fun disconnect() = reader.disconnect()
 
-    override suspend fun processScannedTag(epc: String, rssi: Int, antenna: Int) {
-        if (scannedEpcsCache.add(epc)) {
-            val tag = RfidTagEntity(
-                epc = epc,
-                rssi = rssi,
-                antenna = antenna,
-                readCount = 1
-            )
-            rfidTagDao.upsertTag(tag)
-        }
-    }
+    override suspend fun startReading() = reader.startScanning()
 
-    override suspend fun getPendingSyncTags(): List<RfidTagEntity> {
-        return emptyList()
-    }
-
-    override suspend fun markAsSynced(epcs: List<String>) {
-        // Reservado para la sincronización remota
-    }
-
-    override suspend fun clearTags() {
-        scannedEpcsCache.clear()
-        rfidTagDao.clearAll()
-    }
+    override suspend fun stopReading() = reader.stopScanning()
 }
