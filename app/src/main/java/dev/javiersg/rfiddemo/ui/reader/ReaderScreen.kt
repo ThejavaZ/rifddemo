@@ -1,6 +1,7 @@
-package dev.javiersg.rfiddemo.data.reader
+package dev.javiersg.rfiddemo.ui.reader
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,93 +13,88 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.javiersg.rfiddemo.domain.repository.ConnectionState
+import dev.javiersg.rfiddemo.data.model.ConnectionState
+import dev.javiersg.rfiddemo.data.model.RfidTag
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
-    viewModel: ReaderViewModel
+    viewModel: ReaderViewModel,
+    modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("RFID Scanner Demo", fontWeight = FontWeight.Bold) }
-            )
-        }
-    ) { paddingValues ->
+        modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header con estado de conexión y métricas rápidas
+            // Header de Conexión
             ConnectionHeader(
                 connectionState = uiState.connectionState,
                 onToggleConnection = { viewModel.toggleConnection() }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
+            // Barra de Métricas
             MetricsBar(
-                uniqueCount = uiState.tags.size,
+                tagCount = uiState.tags.size,
                 totalReads = uiState.totalReads,
-                onClear = { viewModel.clearTags() }
+                onClearTags = { viewModel.clearTags() }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Lista reactiva de Tags
-            LazyColumn(
+            // Lista de Tags
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .fillMaxWidth()
             ) {
-                items(
-                    items = uiState.tags,
-                    key = { it.tag.epc }
-                ) { item ->
-                    TagCard(item = item)
+                if (uiState.tags.isEmpty()) {
+                    Text(
+                        text = "No se han detectado lectura de tags.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(
+                            items = uiState.tags,
+                            key = { it.epc }
+                        ) { tag ->
+                            TagReadItem(tag = tag)
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón de lectura (Trigger)
+            // Controles de Lectura
             Button(
                 onClick = { viewModel.toggleScanning() },
                 enabled = uiState.connectionState == ConnectionState.CONNECTED,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (uiState.isScanning) Color(0xFFD32F2F) else MaterialTheme.colorScheme.primary
-                )
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = if (uiState.isScanning) "STOP SCANNING" else "START SCANNING",
-                    fontWeight = FontWeight.Bold
+                    text = if (uiState.isScanning) "DETENER LECTURA" else "INICIAR LECTURA"
                 )
             }
         }
@@ -106,71 +102,81 @@ fun ReaderScreen(
 }
 
 @Composable
-fun ConnectionHeader(
+private fun ConnectionHeader(
     connectionState: ConnectionState,
     onToggleConnection: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = "Hardware Status", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = "Estado del Lector",
+                    style = MaterialTheme.typography.labelMedium
+                )
                 Text(
                     text = connectionState.name,
-                    fontWeight = FontWeight.Bold,
-                    color = when (connectionState) {
-                        ConnectionState.CONNECTED -> Color(0xFF2E7D32)
-                        ConnectionState.CONNECTING -> Color(0xFFED6C02)
-                        else -> Color.Gray
-                    }
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
 
-            OutlinedButton(onClick = onToggleConnection) {
-                Text(if (connectionState == ConnectionState.CONNECTED) "Disconnect" else "Connect")
+            when (connectionState) {
+                ConnectionState.CONNECTING -> {
+                    CircularProgressIndicator(modifier = Modifier.height(24.dp))
+                }
+                else -> {
+                    OutlinedButton(onClick = onToggleConnection) {
+                        Text(
+                            text = if (connectionState == ConnectionState.CONNECTED) "Desconectar" else "Conectar"
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun MetricsBar(
-    uniqueCount: Int,
-    totalReads: Int,
-    onClear: () -> Unit
+private fun MetricsBar(
+    tagCount: Int,
+    totalReads: Long,
+    onClearTags: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row {
-            Text(text = "Unique: ", fontWeight = FontWeight.Bold)
-            Text(text = "$uniqueCount")
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(text = "Total Reads: ", fontWeight = FontWeight.Bold)
-            Text(text = "$totalReads")
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column {
+                Text("Únicos", style = MaterialTheme.typography.labelSmall)
+                Text("$tagCount", style = MaterialTheme.typography.titleLarge)
+            }
+            Column {
+                Text("Total Lecturas", style = MaterialTheme.typography.labelSmall)
+                Text("$totalReads", style = MaterialTheme.typography.titleLarge)
+            }
         }
-
-        OutlinedButton(onClick = onClear) {
-            Text("Clear")
+        OutlinedButton(onClick = onClearTags) {
+            Text("Limpiar")
         }
     }
 }
 
 @Composable
-fun TagCard(item: TagReadItem) {
+private fun TagReadItem(tag: RfidTag) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -181,29 +187,25 @@ fun TagCard(item: TagReadItem) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.tag.epc,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
+                    text = tag.epc,
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "RSSI: ${item.tag.rssi} dBm",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "RSSI: ${tag.rssi} dBm",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "Antena: ${tag.antenna}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Text(
-                    text = "x${item.count}",
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
+            Text(
+                text = "${tag.peakCount}",
+                style = MaterialTheme.typography.titleMedium
+            )
         }
     }
 }

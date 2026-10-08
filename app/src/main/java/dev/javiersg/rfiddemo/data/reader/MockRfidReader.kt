@@ -1,8 +1,7 @@
 package dev.javiersg.rfiddemo.data.reader
 
-import dev.javiersg.rfiddemo.domain.model.RfidTag
-import dev.javiersg.rfiddemo.domain.repository.ConnectionState
-import dev.javiersg.rfiddemo.domain.repository.IRfidReader
+import dev.javiersg.rfiddemo.data.model.ConnectionState
+import dev.javiersg.rfiddemo.data.model.RfidTag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,29 +15,35 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
-class MockRfidReader : IRfidReader {
+class MockRfidReader : RfidReader {
+
+    private val scope = CoroutineScope(Dispatchers.Default)
+
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     override val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    private val _tagStream = MutableSharedFlow<RfidTag>(replay = 0)
-    override val tagStream: SharedFlow<RfidTag> = _tagStream.asSharedFlow()
+    private val _tagReads = MutableSharedFlow<RfidTag>(replay = 0)
+    override val tagReads: SharedFlow<RfidTag> = _tagReads.asSharedFlow()
 
     private var scanJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.Default)
-    // Pool de EPCs de prueba que simularán etiquetas reales en almacén
+
+    // Pool de EPCs simulados para emular escaneo masivo
     private val mockEpcs = listOf(
-        "E28011700000020A12345678",
-        "E28011700000020A87654321",
-        "E28011700000020AABCDEF12",
-        "E28011700000020A99887766",
-        "E28011700000020A55443322"
+        "E28011700000020C731A8901",
+        "E28011700000020C731A8902",
+        "E28011700000020C731A8903",
+        "E28011700000020C731A8904",
+        "E28011700000020C731A8905",
+        "E28011700000020C731A8906",
+        "E28011700000020C731A8907",
+        "E28011700000020C731A8908"
     )
 
-    override suspend fun connect(): Result<Unit> {
+    override suspend fun connect() {
+        if (_connectionState.value == ConnectionState.CONNECTED) return
         _connectionState.value = ConnectionState.CONNECTING
-        delay(800) // Simula la latencia de handshake Bluetooth/USB
+        delay(1000) // Simula handshake hardware
         _connectionState.value = ConnectionState.CONNECTED
-        return Result.success(Unit)
     }
 
     override suspend fun disconnect() {
@@ -47,22 +52,22 @@ class MockRfidReader : IRfidReader {
     }
 
     override suspend fun startScanning() {
-        if (_connectionState.value != ConnectionState.CONNECTED) return
-        if (scanJob?.isActive == true) return
+        if (_connectionState.value != ConnectionState.CONNECTED || scanJob?.isActive == true) return
 
         scanJob = scope.launch {
             while (true) {
-                // Genera una lectura simulada cada 300ms a 700ms
-                delay(Random.nextLong(300, 700))
                 val randomEpc = mockEpcs.random()
-                val randomRssi = Random.nextInt(-75, -35) // dBm típico de RFID
+                val randomRssi = Random.nextInt(-75, -35)
+                val randomAntenna = Random.nextInt(1, 3)
 
-                _tagStream.emit(
+                _tagReads.emit(
                     RfidTag(
                         epc = randomEpc,
-                        rssi = randomRssi
+                        rssi = randomRssi,
+                        antenna = randomAntenna
                     )
                 )
+                delay(150) // Emula lecturas rápidas en ráfaga (burst rate)
             }
         }
     }
