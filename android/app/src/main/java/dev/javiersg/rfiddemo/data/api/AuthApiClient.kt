@@ -1,5 +1,6 @@
 package dev.javiersg.rfiddemo.data.api
 
+import dev.javiersg.rfiddemo.BuildConfig
 import dev.javiersg.rfiddemo.data.api.dto.AuthResponseDto
 import dev.javiersg.rfiddemo.data.api.dto.LoginRequestDto
 import io.ktor.client.HttpClient
@@ -17,7 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 class AuthApiClient(
-    baseUrl: String = DEFAULT_BASE_URL,
+    baseUrl: String = BuildConfig.BASE_URL,
     private val tokenStore: TokenStore,
 ) {
     private val httpClient =
@@ -66,7 +67,6 @@ class AuthApiClient(
         }
 
     companion object {
-        const val DEFAULT_BASE_URL = "http://192.168.100.8:8080"
         const val LOGIN_PATH = "/api/v1/auth/token"
         private const val CONNECT_TIMEOUT_MS = 5_000L
         private const val REQUEST_TIMEOUT_MS = 10_000L

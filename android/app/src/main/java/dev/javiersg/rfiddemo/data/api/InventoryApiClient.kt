@@ -1,5 +1,6 @@
 package dev.javiersg.rfiddemo.data.api
 
+import dev.javiersg.rfiddemo.BuildConfig
 import dev.javiersg.rfiddemo.data.api.dto.InventoryResponseDto
 import dev.javiersg.rfiddemo.data.api.dto.SyncTagsRequestDto
 import dev.javiersg.rfiddemo.data.api.dto.SyncTagsResponseDto
@@ -24,7 +25,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 class InventoryApiClient(
-    baseUrl: String = DEFAULT_BASE_URL,
+    baseUrl: String = BuildConfig.BASE_URL,
     private val tokenStore: TokenStore? = null,
 ) {
     private val httpClient =
@@ -80,7 +81,6 @@ class InventoryApiClient(
         }
 
     companion object {
-        const val DEFAULT_BASE_URL = "http://10.0.2.2:8080"
         const val SYNC_PATH = "/api/v1/sync/tags"
         const val INVENTORY_PATH = "/api/v1/inventory"
         private const val CONNECT_TIMEOUT_MS = 5_000L
