@@ -1,20 +1,20 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Npgsql;
-using RFID.Api.Features.Auth;
-using RFID.Api.Features.Inventory;
-using RFID.Api.Features.Sync;
-using RFID.Api.Infrastructure;
+using RFID.Api.Middleware;
+using RFID.Application.Auth;
+using RFID.Application.Inventory;
+using RFID.Application.Sync;
+using RFID.Infrastructure;
+using RFID.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(
-    builder.Configuration.GetConnectionString("Database")
-        ?? throw new InvalidOperationException("ConnectionStrings:Database es requerido")));
-builder.Services.AddSingleton<TokenService>();
+builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddProblemDetails();
 
-// Validación JWT: la misma clave simétrica que usa TokenService para firmar.
+// Validación JWT: la misma clave simétrica que usa JwtTokenService para firmar.
 // En desarrollo la clave vive en appsettings.Development.json; en producción se inyecta por variable de entorno.
 var signingKey = builder.Configuration["Auth:SigningKey"]
     ?? throw new InvalidOperationException("Auth:SigningKey es requerido para validar JWT");
@@ -37,15 +37,21 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
+// Casos de uso (Application) que invocan los controllers (adaptadores de entrada).
+builder.Services.AddScoped<Login>();
+builder.Services.AddScoped<SyncTags>();
+builder.Services.AddScoped<GetInventoryByEpc>();
+
+// Adaptadores de salida: EF Core, BCrypt y JWT detrás de sus puertos.
+builder.Services.AddInfrastructure(builder.Configuration);
+
 var app = builder.Build();
 
 await DatabaseInitializer.InitializeAsync(app.Services);
 
+app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapAuthEndpoints();
-app.MapSyncEndpoints();
-app.MapInventoryEndpoints();
+app.MapControllers();
 
 app.Run();
