@@ -9,9 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
-import dev.javiersg.rfiddemo.data.remote.TokenStore
-import dev.javiersg.rfiddemo.ui.navigation.RfidNavHost
-import dev.javiersg.rfiddemo.ui.theme.RfiddemoTheme
+import dev.javiersg.rfiddemo.core.navigation.RfidNavHost
+import dev.javiersg.rfiddemo.core.theme.RfiddemoTheme
+import dev.javiersg.rfiddemo.data.api.TokenStore
 import javax.inject.Inject
 
 @AndroidEntryPoint

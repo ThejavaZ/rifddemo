@@ -7,8 +7,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dev.javiersg.rfiddemo.data.local.dao.TagDao
-import dev.javiersg.rfiddemo.data.local.database.AppDatabase
+import dev.javiersg.rfiddemo.data.dao.TagDao
+import dev.javiersg.rfiddemo.data.database.AppDatabase
 import javax.inject.Singleton
 
 @Module

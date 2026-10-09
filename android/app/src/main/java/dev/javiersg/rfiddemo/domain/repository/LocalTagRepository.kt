@@ -1,6 +1,6 @@
 package dev.javiersg.rfiddemo.domain.repository
 
-import dev.javiersg.rfiddemo.data.local.entity.TagEntity
+import dev.javiersg.rfiddemo.data.database.entity.TagEntity
 import kotlinx.coroutines.flow.Flow
 
 interface LocalTagRepository {

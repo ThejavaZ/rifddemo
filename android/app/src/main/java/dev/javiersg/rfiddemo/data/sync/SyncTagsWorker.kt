@@ -6,7 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import dev.javiersg.rfiddemo.diagnostics.DiagnosticLogger
+import dev.javiersg.rfiddemo.core.logging.DiagnosticLogger
 import dev.javiersg.rfiddemo.domain.repository.LocalTagRepository
 
 @HiltWorker

@@ -1,7 +1,7 @@
 package dev.javiersg.rfiddemo.data.repository
 
-import dev.javiersg.rfiddemo.data.local.dao.TagDao
-import dev.javiersg.rfiddemo.data.local.entity.TagEntity
+import dev.javiersg.rfiddemo.data.dao.TagDao
+import dev.javiersg.rfiddemo.data.database.entity.TagEntity
 import dev.javiersg.rfiddemo.data.sync.SyncScheduler
 import dev.javiersg.rfiddemo.domain.repository.LocalTagRepository
 import kotlinx.coroutines.flow.Flow

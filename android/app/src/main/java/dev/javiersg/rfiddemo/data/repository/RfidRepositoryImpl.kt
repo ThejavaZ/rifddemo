@@ -1,10 +1,10 @@
 package dev.javiersg.rfiddemo.data.repository
 
-import dev.javiersg.rfiddemo.data.local.mapper.DEFAULT_ANTENNA
+import dev.javiersg.rfiddemo.data.database.mapper.DEFAULT_ANTENNA
 import dev.javiersg.rfiddemo.domain.model.ReaderStatus
 import dev.javiersg.rfiddemo.domain.model.RfidTag
-import dev.javiersg.rfiddemo.domain.repository.IRfidReader
 import dev.javiersg.rfiddemo.domain.repository.LocalTagRepository
+import dev.javiersg.rfiddemo.domain.repository.RfidReader
 import dev.javiersg.rfiddemo.domain.repository.RfidRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class RfidRepositoryImpl(
-    private val reader: IRfidReader,
+    private val reader: RfidReader,
     private val localTagRepository: LocalTagRepository,
 ) : RfidRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

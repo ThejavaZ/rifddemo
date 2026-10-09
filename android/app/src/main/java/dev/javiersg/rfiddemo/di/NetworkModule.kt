@@ -6,9 +6,9 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dev.javiersg.rfiddemo.data.remote.AuthApiClient
-import dev.javiersg.rfiddemo.data.remote.InventoryApiClient
-import dev.javiersg.rfiddemo.data.remote.TokenStore
+import dev.javiersg.rfiddemo.data.api.AuthApiClient
+import dev.javiersg.rfiddemo.data.api.InventoryApiClient
+import dev.javiersg.rfiddemo.data.api.TokenStore
 import javax.inject.Singleton
 
 @Module
