@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: rfid
+      POSTGRES_PASSWORD: rfid_dev
+      POSTGRES_DB: rfid_api
+    volumes:
+      # En las imágenes PG18+ el mount va en /var/lib/postgresql (los datos quedan en un subdirectorio).
+      - rfid_pgdata:/var/lib/postgresql
+    ports:
+      # Solo para consultar la BD desde el host (psql); la API dentro usa db:5432.
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rfid -d rfid_api"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Al arrancar, DatabaseInitializer aplica las migraciones y ejecuta los seeders.
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Database: "Host=db;Port=5432;Database=rfid_api;Username=rfid;Password=rfid_dev"
+    ports:
+      # 5000 es la URL que ya tiene configurada la app Android (BuildConfig.BASE_URL).
+      - "5000:8080"
+
+volumes:
+  rfid_pgdata:
