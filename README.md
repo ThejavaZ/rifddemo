@@ -196,3 +196,7 @@ Backend: `dotnet build backend/RfidPlatform.sln` (0 warnings).
 ## Estado
 
 Fases 1–3 completadas (días 1–15): dominio y lector mock → Room + sync + backend → Hilt, SDK Zebra, CameraX/ML Kit, JWT, navegación y calidad de código. Etapa actual: arquitectura hexagonal + EF Core + Docker.
+
+## Licencia
+
+Este proyecto se distribuye bajo la licencia [MIT](LICENSE) — © 2026 TheJavaZ.
