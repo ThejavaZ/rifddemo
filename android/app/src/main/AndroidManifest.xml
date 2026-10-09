@@ -14,6 +14,7 @@
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
+    <!-- usesCleartextTraffic: desarrollo con backend http://10.0.2.2:8080 -->
     <application
         android:name=".RfidApplication"
         android:allowBackup="true"
@@ -24,6 +25,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Rfiddemo"
+        android:usesCleartextTraffic="true"
         tools:replace="android:allowBackup"> <!-- Añadido para resolver el conflicto con el AAR -->
 
         <activity

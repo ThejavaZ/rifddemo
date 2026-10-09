@@ -8,11 +8,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.javiersg.rfiddemo.data.local.entity.RfidTagEntity
+import dev.javiersg.rfiddemo.data.local.entity.TagEntity
 
 @Composable
 fun TagItem(
-    tag: RfidTagEntity,
+    tag: TagEntity,
     modifier: Modifier = Modifier
 ) {
     Card(

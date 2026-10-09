@@ -1,3 +1,8 @@
 *.iml
 .DS_Store
 .idea/
+
+# .NET
+bin/
+obj/
+

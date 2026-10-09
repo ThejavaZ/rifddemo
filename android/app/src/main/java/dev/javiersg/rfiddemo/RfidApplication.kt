@@ -11,5 +11,7 @@ class RfidApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Recupera la cola de tags PENDING de corridas anteriores.
+        container.syncScheduler.scheduleSync()
     }
 }

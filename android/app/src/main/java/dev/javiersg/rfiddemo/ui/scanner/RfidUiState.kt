@@ -1,9 +1,9 @@
 package dev.javiersg.rfiddemo.ui.scanner
 
-import dev.javiersg.rfiddemo.data.local.entity.RfidTagEntity
+import dev.javiersg.rfiddemo.data.local.entity.TagEntity
 
 data class RfidUiState(
-    val tags: List<RfidTagEntity> = emptyList(),
+    val tags: List<TagEntity> = emptyList(),
     val totalReads: Int = 0,
     val uniqueTags: Int = 0,
     val isScanning: Boolean = false,
