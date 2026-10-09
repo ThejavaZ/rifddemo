@@ -9,8 +9,8 @@ import dev.javiersg.rfiddemo.domain.model.SyncStatus
     tableName = "rfid_tags",
     indices = [
         Index(value = ["syncStatus"]),
-        Index(value = ["lastSeenTimestamp"])
-    ]
+        Index(value = ["lastSeenTimestamp"]),
+    ],
 )
 data class TagEntity(
     @PrimaryKey
@@ -21,5 +21,5 @@ data class TagEntity(
     val lastSeenTimestamp: Long = System.currentTimeMillis(),
     val syncStatus: SyncStatus = SyncStatus.PENDING,
     val lastAttempt: Long = 0L,
-    val retryCount: Int = 0
+    val retryCount: Int = 0,
 )

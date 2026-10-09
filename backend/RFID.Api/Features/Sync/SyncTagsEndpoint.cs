@@ -27,7 +27,7 @@ public static class SyncEndpoints
 
     public static IEndpointRouteBuilder MapSyncEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/v1/sync/tags", Handle);
+        app.MapPost("/api/v1/sync/tags", Handle).RequireAuthorization();
         return app;
     }
 

@@ -11,10 +11,9 @@ import dev.javiersg.rfiddemo.data.local.entity.TagEntity
 @Database(
     entities = [TagEntity::class, InventoryEntity::class],
     version = 2,
-    exportSchema = false
+    exportSchema = false,
 )
 @TypeConverters(SyncStatusConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-
     abstract fun tagDao(): TagDao
 }

@@ -7,5 +7,5 @@ data class InventoryOperation(
     val epc: String,
     val timestamp: Long = System.currentTimeMillis(),
     val syncStatus: SyncStatus = SyncStatus.PENDING,
-    val locationId: String? = null
+    val locationId: String? = null,
 )

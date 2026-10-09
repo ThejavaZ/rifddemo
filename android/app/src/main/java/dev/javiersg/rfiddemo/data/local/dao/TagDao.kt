@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TagDao {
-
     @Query("SELECT * FROM rfid_tags ORDER BY lastSeenTimestamp DESC")
     fun getAllTags(): Flow<List<TagEntity>>
 
@@ -27,13 +26,24 @@ interface TagDao {
     suspend fun upsertTags(tags: List<TagEntity>)
 
     @Query("UPDATE rfid_tags SET syncStatus = 'SYNCING', lastAttempt = :timestamp WHERE epc IN (:epcs)")
-    suspend fun markAsSyncing(epcs: List<String>, timestamp: Long)
+    suspend fun markAsSyncing(
+        epcs: List<String>,
+        timestamp: Long,
+    )
 
     @Query("UPDATE rfid_tags SET syncStatus = 'SYNCED', lastAttempt = :timestamp, retryCount = 0 WHERE epc IN (:epcs)")
-    suspend fun markAsSynced(epcs: List<String>, timestamp: Long)
+    suspend fun markAsSynced(
+        epcs: List<String>,
+        timestamp: Long,
+    )
 
-    @Query("UPDATE rfid_tags SET syncStatus = 'FAILED', lastAttempt = :timestamp, retryCount = retryCount + 1 WHERE epc IN (:epcs)")
-    suspend fun markAsFailed(epcs: List<String>, timestamp: Long)
+    @Query(
+        "UPDATE rfid_tags SET syncStatus = 'FAILED', lastAttempt = :timestamp, retryCount = retryCount + 1 WHERE epc IN (:epcs)",
+    )
+    suspend fun markAsFailed(
+        epcs: List<String>,
+        timestamp: Long,
+    )
 
     @Query("DELETE FROM rfid_tags")
     suspend fun clearAll()

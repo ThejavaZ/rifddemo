@@ -7,8 +7,8 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "inventory",
     indices = [
-        Index(value = ["epc"], unique = true)
-    ]
+        Index(value = ["epc"], unique = true),
+    ],
 )
 data class InventoryEntity(
     @PrimaryKey
@@ -16,5 +16,5 @@ data class InventoryEntity(
     val epc: String,
     val name: String,
     val quantity: Int,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
 )

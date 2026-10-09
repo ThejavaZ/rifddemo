@@ -9,20 +9,22 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
-class SyncScheduler(context: Context) {
-
+class SyncScheduler(
+    context: Context,
+) {
     private val workManager = WorkManager.getInstance(context)
 
     // Encola la sincronización solo cuando haya red; KEEP evita duplicar un trabajo ya pendiente.
     fun scheduleSync() {
-        val request = OneTimeWorkRequestBuilder<SyncTagsWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
-            .build()
+        val request =
+            OneTimeWorkRequestBuilder<SyncTagsWorker>()
+                .setConstraints(
+                    Constraints
+                        .Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build(),
+                ).setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
+                .build()
 
         workManager.enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.KEEP, request)
     }

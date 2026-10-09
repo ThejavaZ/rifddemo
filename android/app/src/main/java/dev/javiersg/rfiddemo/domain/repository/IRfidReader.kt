@@ -10,7 +10,10 @@ interface IRfidReader {
     val tagFlow: Flow<RfidTag>
 
     suspend fun connect()
+
     suspend fun disconnect()
+
     suspend fun startScanning()
+
     suspend fun stopScanning()
 }

@@ -5,5 +5,5 @@ enum class ReaderStatus {
     CONNECTING,
     CONNECTED,
     SCANNING,
-    ERROR
+    ERROR,
 }

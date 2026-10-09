@@ -1,0 +1,37 @@
+# Configuración detekt para código Compose/MVVM:
+# se desactivan reglas que generan falso positivo en UI declarativa y DTOs.
+complexity:
+  LongMethod:
+    active: false
+  LongParameterList:
+    active: false
+  TooManyFunctions:
+    active: false
+  CyclomaticComplexMethod:
+    active: false
+  ComplexCondition:
+    active: false
+  NestedBlockDepth:
+    active: false
+  LargeClass:
+    active: false
+
+style:
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: false
+  UnusedPrivateMember:
+    active: false
+  ReturnCount:
+    active: false
+  ThrowsCount:
+    active: false
+  ForbiddenComment:
+    active: false
+
+naming:
+  FunctionNaming:
+    active: false
+  TopLevelPropertyNaming:
+    active: false

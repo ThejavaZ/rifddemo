@@ -1,108 +1,207 @@
 package dev.javiersg.rfiddemo.data.hardware
 
 import android.content.Context
-import dev.javiersg.rfiddemo.data.ZebraRfidManager
-import dev.javiersg.rfiddemo.domain.hardware.ReaderConnectionState
-import dev.javiersg.rfiddemo.domain.hardware.RfidReaderService
-import dev.javiersg.rfiddemo.domain.hardware.ScannedTagEvent
+import com.zebra.rfid.api3.ENUM_TRANSPORT
+import com.zebra.rfid.api3.HANDHELD_TRIGGER_EVENT_TYPE
+import com.zebra.rfid.api3.RFIDReader
+import com.zebra.rfid.api3.ReaderDevice
+import com.zebra.rfid.api3.Readers
+import com.zebra.rfid.api3.RfidEventsListener
+import com.zebra.rfid.api3.RfidReadEvents
+import com.zebra.rfid.api3.RfidStatusEvents
+import com.zebra.rfid.api3.STATUS_EVENT_TYPE
+import dev.javiersg.rfiddemo.domain.model.ReaderStatus
+import dev.javiersg.rfiddemo.domain.model.RfidTag
+import dev.javiersg.rfiddemo.domain.repository.IRfidReader
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.withContext
 
+/**
+ * Implementación de [IRfidReader] sobre el SDK Zebra RFID API3 (AAR rfidapi3lib).
+ *
+ * Los callbacks del SDK (hilo binder) se encapsulan en [callbackFlow]; [shareIn] mantiene
+ * un único puente con el SDK y distribuye las lecturas a todos los collectors (UI, Room)
+ * sin bloquear el hilo principal.
+ */
 class ZebraRfidServiceImpl(
     private val context: Context,
-    private val zebraManager: ZebraRfidManager = ZebraRfidManager(context)
-) : RfidReaderService {
+) : IRfidReader {
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val scope = CoroutineScope(Dispatchers.IO)
-    private var reconnectJob: Job? = null
+    private var readers: Readers? = null
+    private var readerDevice: ReaderDevice? = null
+    private var reader: RFIDReader? = null
 
-    private val _connectionState = MutableStateFlow<ReaderConnectionState>(ReaderConnectionState.Disconnected)
-    override val connectionState: StateFlow<ReaderConnectionState> = _connectionState.asStateFlow()
+    private val _readerStatus = MutableStateFlow(ReaderStatus.DISCONNECTED)
+    override val readerStatus: StateFlow<ReaderStatus> = _readerStatus.asStateFlow()
 
-    override val scannedTags: Flow<ScannedTagEvent> = zebraManager.tagReadFlow.map { epc ->
-        ScannedTagEvent(epc = epc, rssi = 0)
-    }
+    // Puente de emisión: se activa mientras el flujo compartido esté colectado (Eagerly).
+    private var tagEmitter: ((RfidTag) -> Unit)? = null
 
-    fun init() {
-        zebraManager.initSdk()
-    }
+    override val tagFlow: Flow<RfidTag> =
+        callbackFlow {
+            tagEmitter = { tag -> trySend(tag) }
+            awaitCancellation()
+        }.buffer(
+            capacity = TAG_BUFFER_CAPACITY,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        ).shareIn(
+            scope = serviceScope,
+            started = SharingStarted.Eagerly,
+            replay = 0,
+        )
 
-    override suspend fun connect(): Boolean {
-        return try {
-            _connectionState.value = ReaderConnectionState.Connecting
-            zebraManager.connectFirstAvailableReader()
-
-            if (zebraManager.connectionState.value.startsWith("Conectado")) {
-                val currentDeviceName = zebraManager.connectionState.value.removePrefix("Conectado a ").ifBlank { "Zebra RFID Reader" }
-                _connectionState.value = ReaderConnectionState.Connected(readerName = currentDeviceName)
-                true
-            } else {
-                _connectionState.value = ReaderConnectionState.Disconnected
-                false
+    private val sdkListener =
+        object : RfidEventsListener {
+            override fun eventReadNotify(e: RfidReadEvents?) {
+                drainReadTags()
             }
-        } catch (e: Exception) {
-            _connectionState.value = ReaderConnectionState.Error(e.message ?: "Error al conectar")
-            false
+
+            override fun eventStatusNotify(e: RfidStatusEvents?) {
+                handleStatusEvent(e)
+            }
+        }
+
+    override suspend fun connect() {
+        if (_readerStatus.value == ReaderStatus.CONNECTED ||
+            _readerStatus.value == ReaderStatus.SCANNING
+        ) {
+            return
+        }
+
+        _readerStatus.value = ReaderStatus.CONNECTING
+        try {
+            withContext(Dispatchers.IO) {
+                if (readers == null) {
+                    readers = Readers(context, ENUM_TRANSPORT.ALL)
+                }
+                val available = readers?.GetAvailableRFIDReaderList().orEmpty()
+                check(available.isNotEmpty()) { "No se encontraron lectores RFID" }
+
+                readerDevice = available.first()
+                reader = readerDevice?.rfidReader
+                if (reader?.isConnected != true) {
+                    reader?.connect()
+                }
+                configureEvents()
+            }
+            _readerStatus.value = ReaderStatus.CONNECTED
+        } catch (e: CancellationException) {
+            _readerStatus.value = ReaderStatus.DISCONNECTED
+            throw e
+        } catch (_: Exception) {
+            // Sin lector, fallo de conexión o configuración: estado ERROR sin tumbar la app.
+            _readerStatus.value = ReaderStatus.ERROR
         }
     }
 
     override suspend fun disconnect() {
         try {
-            zebraManager.disconnect()
+            withContext(Dispatchers.IO) {
+                reader?.let { r ->
+                    if (r.isConnected) {
+                        r.Events.removeEventsListener(sdkListener)
+                        r.disconnect()
+                    }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Error de hardware al desconectar: de todas formas soltamos las referencias.
         } finally {
-            _connectionState.value = ReaderConnectionState.Disconnected
+            reader = null
+            readerDevice = null
+            _readerStatus.value = ReaderStatus.DISCONNECTED
         }
     }
 
     override suspend fun startScanning() {
-        zebraManager.performInventory()
+        if (_readerStatus.value != ReaderStatus.CONNECTED) return
+        val current = reader
+        if (current?.isConnected != true) {
+            _readerStatus.value = ReaderStatus.ERROR
+            return
+        }
+        try {
+            withContext(Dispatchers.IO) { current.Actions.Inventory.perform() }
+            _readerStatus.value = ReaderStatus.SCANNING
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            _readerStatus.value = ReaderStatus.ERROR
+        }
     }
 
     override suspend fun stopScanning() {
-        zebraManager.stopInventory()
-    }
-
-    override suspend fun setAntennaPower(powerLevel: Int) {
-        // Reservado para la configuración de potencia del SDK
-    }
-
-    fun connectWithRetry(maxRetries: Int = 3) {
-        reconnectJob?.cancel()
-        reconnectJob = scope.launch {
-            var currentAttempt = 0
-            var connected = false
-
-            while (currentAttempt < maxRetries && !connected) {
-                connected = connect()
-                if (!connected) {
-                    currentAttempt++
-                    delay(2000)
-                }
-            }
+        if (_readerStatus.value != ReaderStatus.SCANNING) return
+        try {
+            withContext(Dispatchers.IO) { reader?.Actions?.Inventory?.stop() }
+            _readerStatus.value = ReaderStatus.CONNECTED
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            _readerStatus.value = ReaderStatus.ERROR
         }
     }
 
-    fun onPause() {
-        scope.launch { stopScanning() }
-    }
-
-    fun onResume() {
-        if (_connectionState.value is ReaderConnectionState.Disconnected ||
-            _connectionState.value is ReaderConnectionState.Error) {
-            connectWithRetry()
+    private fun configureEvents() {
+        reader?.Events?.let { events ->
+            events.addEventsListener(sdkListener)
+            events.setHandheldEvent(true)
+            events.setTagReadEvent(true)
+            events.setAttachTagDataWithReadEvent(true)
         }
     }
 
-    fun release() {
-        reconnectJob?.cancel()
-        scope.launch { disconnect() }
+    private fun drainReadTags() {
+        val tags = runCatching { reader?.Actions?.getReadTags(TAG_BATCH_SIZE) }.getOrNull() ?: return
+        tags.forEach { data ->
+            val epc = data.tagID ?: return@forEach
+            tagEmitter?.invoke(
+                RfidTag(
+                    epc = epc,
+                    rssi = data.peakRSSI.toInt(),
+                    timestamp = System.currentTimeMillis(),
+                ),
+            )
+        }
+    }
+
+    private fun handleStatusEvent(event: RfidStatusEvents?) {
+        val statusData = event?.StatusEventData ?: return
+        if (statusData.statusEventType != STATUS_EVENT_TYPE.HANDHELD_TRIGGER_EVENT) return
+
+        when (statusData.HandheldTriggerEventData) {
+            HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED -> performInventory()
+            HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_RELEASED -> stopInventory()
+            else -> Unit
+        }
+    }
+
+    private fun performInventory() {
+        runCatching { reader?.Actions?.Inventory?.perform() }
+    }
+
+    private fun stopInventory() {
+        runCatching { reader?.Actions?.Inventory?.stop() }
+    }
+
+    private companion object {
+        const val TAG_BUFFER_CAPACITY = 64
+        const val TAG_BATCH_SIZE = 10
     }
 }

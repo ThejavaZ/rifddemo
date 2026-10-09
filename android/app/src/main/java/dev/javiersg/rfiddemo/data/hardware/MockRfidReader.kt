@@ -22,18 +22,18 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 class MockRfidReader : IRfidReader {
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _readerStatus = MutableStateFlow(ReaderStatus.DISCONNECTED)
     override val readerStatus: StateFlow<ReaderStatus> = _readerStatus.asStateFlow()
 
     // Buffer con DROP_OLDEST: un colector lento (UI) nunca bloquea la emisión de ráfaga.
-    private val _tagFlow = MutableSharedFlow<RfidTag>(
-        replay = 0,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val _tagFlow =
+        MutableSharedFlow<RfidTag>(
+            replay = 0,
+            extraBufferCapacity = 64,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
     override val tagFlow: Flow<RfidTag> = _tagFlow.asSharedFlow()
 
     private var scanJob: Job? = null
@@ -44,7 +44,9 @@ class MockRfidReader : IRfidReader {
     override suspend fun connect() {
         if (_readerStatus.value == ReaderStatus.CONNECTED ||
             _readerStatus.value == ReaderStatus.SCANNING
-        ) return
+        ) {
+            return
+        }
 
         _readerStatus.value = ReaderStatus.CONNECTING
         try {
@@ -66,20 +68,21 @@ class MockRfidReader : IRfidReader {
         if (_readerStatus.value != ReaderStatus.CONNECTED) return
 
         _readerStatus.value = ReaderStatus.SCANNING
-        scanJob = scope.launch {
-            while (isActive) {
-                repeat(Random.nextInt(MIN_BURST, MAX_BURST + 1)) {
-                    _tagFlow.emit(
-                        RfidTag(
-                            epc = nextEpc(),
-                            rssi = Random.nextInt(RSSI_MIN, RSSI_MAX)
+        scanJob =
+            scope.launch {
+                while (isActive) {
+                    repeat(Random.nextInt(MIN_BURST, MAX_BURST + 1)) {
+                        _tagFlow.emit(
+                            RfidTag(
+                                epc = nextEpc(),
+                                rssi = Random.nextInt(RSSI_MIN, RSSI_MAX),
+                            ),
                         )
-                    )
-                    delay(Random.nextLong(TAG_SPACING_MIN_MS, TAG_SPACING_MAX_MS))
+                        delay(Random.nextLong(TAG_SPACING_MIN_MS, TAG_SPACING_MAX_MS))
+                    }
+                    delay(Random.nextLong(BURST_GAP_MIN_MS, BURST_GAP_MAX_MS))
                 }
-                delay(Random.nextLong(BURST_GAP_MIN_MS, BURST_GAP_MAX_MS))
             }
-        }
     }
 
     override suspend fun stopScanning() {
@@ -100,8 +103,15 @@ class MockRfidReader : IRfidReader {
         if (epcPool.isNotEmpty() && Random.nextInt(100) < RELEAD_PERCENT) {
             return epcPool.random()
         }
-        val suffix = (0 until EPC_SUFFIX_BYTES)
-            .joinToString("") { Random.nextInt(256).toString(16).uppercase().padStart(2, '0') }
+        val suffix =
+            (0 until EPC_SUFFIX_BYTES)
+                .joinToString("") {
+                    Random
+                        .nextInt(256)
+                        .toString(16)
+                        .uppercase()
+                        .padStart(2, '0')
+                }
         return (EPC_HEADER + suffix).also { epcPool.add(it) }
     }
 

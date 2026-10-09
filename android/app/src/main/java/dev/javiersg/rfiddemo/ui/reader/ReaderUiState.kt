@@ -7,5 +7,5 @@ data class ReaderUiState(
     val status: ReaderStatus = ReaderStatus.DISCONNECTED,
     val tags: List<RfidTag> = emptyList(),
     val totalCount: Int = 0,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 )

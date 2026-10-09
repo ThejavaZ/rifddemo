@@ -4,7 +4,6 @@ import androidx.room.TypeConverter
 import dev.javiersg.rfiddemo.domain.model.SyncStatus
 
 class SyncStatusConverter {
-
     @TypeConverter
     fun fromSyncStatus(status: SyncStatus): String = status.name
 

@@ -8,15 +8,15 @@ data class TagDto(
     val rssi: Int,
     val antenna: Int,
     val readCount: Int,
-    val lastSeenTimestamp: Long
+    val lastSeenTimestamp: Long,
 )
 
 @Serializable
 data class SyncTagsRequestDto(
-    val tags: List<TagDto>
+    val tags: List<TagDto>,
 )
 
 @Serializable
 data class SyncTagsResponseDto(
-    val syncedCount: Int
+    val syncedCount: Int,
 )

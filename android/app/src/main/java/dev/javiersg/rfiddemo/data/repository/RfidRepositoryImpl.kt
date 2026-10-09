@@ -15,9 +15,8 @@ import kotlinx.coroutines.launch
 
 class RfidRepositoryImpl(
     private val reader: IRfidReader,
-    private val localTagRepository: LocalTagRepository
+    private val localTagRepository: LocalTagRepository,
 ) : RfidRepository {
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
@@ -28,7 +27,7 @@ class RfidRepositoryImpl(
                 localTagRepository.processScannedTag(
                     epc = tag.epc,
                     rssi = tag.rssi,
-                    antenna = DEFAULT_ANTENNA
+                    antenna = DEFAULT_ANTENNA,
                 )
             }
         }

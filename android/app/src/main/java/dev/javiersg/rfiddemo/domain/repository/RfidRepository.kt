@@ -10,7 +10,10 @@ interface RfidRepository {
     val tags: Flow<RfidTag>
 
     suspend fun connect()
+
     suspend fun disconnect()
+
     suspend fun startReading()
+
     suspend fun stopReading()
 }

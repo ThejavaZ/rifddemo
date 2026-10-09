@@ -15,7 +15,7 @@ public static class InventoryEndpoints
 
     public static IEndpointRouteBuilder MapInventoryEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/inventory/{epc}", Handle);
+        app.MapGet("/api/v1/inventory/{epc}", Handle).RequireAuthorization();
         return app;
     }
 

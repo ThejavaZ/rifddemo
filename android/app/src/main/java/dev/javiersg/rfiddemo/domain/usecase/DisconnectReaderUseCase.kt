@@ -1,9 +1,12 @@
 package dev.javiersg.rfiddemo.domain.usecase
 
 import dev.javiersg.rfiddemo.domain.repository.RfidRepository
+import javax.inject.Inject
 
-class DisconnectReaderUseCase(
-    private val repository: RfidRepository
-) {
-    suspend operator fun invoke() = repository.disconnect()
-}
+class DisconnectReaderUseCase
+    @Inject
+    constructor(
+        private val repository: RfidRepository,
+    ) {
+        suspend operator fun invoke() = repository.disconnect()
+    }

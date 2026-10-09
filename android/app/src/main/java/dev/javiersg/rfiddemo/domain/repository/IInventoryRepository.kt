@@ -15,5 +15,8 @@ interface IInventoryRepository {
     suspend fun saveOperation(operation: InventoryOperation)
 
     /** Actualiza el estado de sincronización (PENDING -> SYNCING -> SYNCED) */
-    suspend fun updateSyncStatus(id: String, status: SyncStatus)
+    suspend fun updateSyncStatus(
+        id: String,
+        status: SyncStatus,
+    )
 }

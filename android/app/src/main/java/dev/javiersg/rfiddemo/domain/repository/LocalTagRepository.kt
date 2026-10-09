@@ -5,10 +5,20 @@ import kotlinx.coroutines.flow.Flow
 
 interface LocalTagRepository {
     fun getTags(): Flow<List<TagEntity>>
-    suspend fun processScannedTag(epc: String, rssi: Int, antenna: Int)
+
+    suspend fun processScannedTag(
+        epc: String,
+        rssi: Int,
+        antenna: Int,
+    )
+
     suspend fun getPendingSyncTags(): List<TagEntity>
+
     suspend fun markAsSyncing(epcs: List<String>)
+
     suspend fun markAsSynced(epcs: List<String>)
+
     suspend fun markAsFailed(epcs: List<String>)
+
     suspend fun clearTags()
 }

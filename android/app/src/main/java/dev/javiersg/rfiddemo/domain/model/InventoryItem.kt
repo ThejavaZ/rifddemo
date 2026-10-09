@@ -4,5 +4,5 @@ data class InventoryItem(
     val id: String,
     val epc: String,
     val name: String,
-    val quantity: Int
+    val quantity: Int,
 )

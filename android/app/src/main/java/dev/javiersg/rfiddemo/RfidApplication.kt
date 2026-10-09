@@ -1,17 +1,22 @@
 package dev.javiersg.rfiddemo
 
 import android.app.Application
-import dev.javiersg.rfiddemo.di.AppContainer
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class RfidApplication : Application() {
+@HiltAndroidApp
+class RfidApplication :
+    Application(),
+    Configuration.Provider {
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
 
-    lateinit var container: AppContainer
-        private set
-
-    override fun onCreate() {
-        super.onCreate()
-        container = AppContainer(this)
-        // Recupera la cola de tags PENDING de corridas anteriores.
-        container.syncScheduler.scheduleSync()
-    }
+    override val workManagerConfiguration: Configuration
+        get() =
+            Configuration
+                .Builder()
+                .setWorkerFactory(workerFactory)
+                .build()
 }
