@@ -22,6 +22,13 @@ public static class DatabaseInitializer
             quantity   INTEGER NOT NULL,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+
+        CREATE TABLE IF NOT EXISTS users (
+            id            TEXT PRIMARY KEY,
+            username      TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
         """;
 
     private const string SeedSql = """
@@ -37,5 +44,30 @@ public static class DatabaseInitializer
         await using var connection = await db.OpenConnectionAsync();
         await connection.ExecuteAsync(SchemaSql);
         await connection.ExecuteAsync(SeedSql);
+        await SeedUserAsync(connection, services.GetRequiredService<IConfiguration>());
+    }
+
+    // Crea el usuario inicial solo si no existe; su password se guarda hasheada con BCrypt.
+    private static async Task SeedUserAsync(NpgsqlConnection connection, IConfiguration configuration)
+    {
+        var username = configuration["Auth:SeedUser:Username"];
+        var password = configuration["Auth:SeedUser:Password"];
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            return;
+
+        const string existsSql = "SELECT 1 FROM users WHERE username = @Username";
+        var exists = await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(existsSql, new { Username = username }));
+        if (exists is not null)
+            return;
+
+        const string insertSql =
+            "INSERT INTO users (id, username, password_hash) VALUES (@Id, @Username, @PasswordHash)";
+        await connection.ExecuteAsync(new CommandDefinition(insertSql, new
+        {
+            Id = $"usr-{Guid.NewGuid():N}",
+            Username = username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+        }));
     }
 }

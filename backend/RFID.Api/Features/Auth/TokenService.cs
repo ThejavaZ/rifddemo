@@ -2,20 +2,22 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Dapper;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 namespace RFID.Api.Features.Auth;
-
-public record AuthUser(string Username, string Password);
 
 public class TokenService
 {
     private readonly IConfiguration _configuration;
+    private readonly NpgsqlDataSource _dataSource;
     private readonly SymmetricSecurityKey _signingKey;
 
-    public TokenService(IConfiguration configuration)
+    public TokenService(IConfiguration configuration, NpgsqlDataSource dataSource)
     {
         _configuration = configuration;
+        _dataSource = dataSource;
         // Sin SigningKey configurado se genera una clave efímera: nunca se hardcodea en el repo.
         var configured = configuration["Auth:SigningKey"];
         var keyBytes = string.IsNullOrWhiteSpace(configured)
@@ -24,10 +26,15 @@ public class TokenService
         _signingKey = new SymmetricSecurityKey(keyBytes);
     }
 
-    public bool ValidateCredentials(string username, string password)
+    // Los usuarios viven en PostgreSQL con hash BCrypt; la config solo siembra el usuario inicial.
+    public async Task<bool> ValidateCredentialsAsync(string username, string password)
     {
-        var users = _configuration.GetSection("Auth:Users").Get<List<AuthUser>>() ?? [];
-        return users.Any(user => user.Username == username && user.Password == password);
+        const string sql = "SELECT password_hash FROM users WHERE username = @Username";
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        var passwordHash = await connection.QuerySingleOrDefaultAsync<string>(
+            new CommandDefinition(sql, new { Username = username }));
+
+        return passwordHash is not null && BCrypt.Net.BCrypt.Verify(password, passwordHash);
     }
 
     public (string Token, DateTimeOffset ExpiresAt) CreateToken(string username)

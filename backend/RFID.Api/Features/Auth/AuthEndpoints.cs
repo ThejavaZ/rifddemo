@@ -12,12 +12,12 @@ public static class AuthEndpoints
         return app;
     }
 
-    private static IResult Handle(AuthRequest? request, TokenService tokenService)
+    private static async Task<IResult> Handle(AuthRequest? request, TokenService tokenService)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Username))
             return Results.BadRequest(new { error = "username y password son requeridos" });
 
-        if (!tokenService.ValidateCredentials(request.Username, request.Password))
+        if (!await tokenService.ValidateCredentialsAsync(request.Username, request.Password))
             return Results.Unauthorized();
 
         var (token, expiresAt) = tokenService.CreateToken(request.Username);
