@@ -27,7 +27,7 @@ android {
         // true: MockRfidReader (desarrollo sin hardware). false: ZebraRfidServiceImpl (hardware real).
         buildConfigField("boolean", "USE_MOCK_READER", "true")
         // Backend accesible desde dispositivo físico en la LAN (cambiar IP/puerto si hace falta).
-        buildConfigField("String", "BASE_URL", "\"http://192.168.100.8:5033\"")
+        buildConfigField("String", "BASE_URL", "\"http://192.168.100.8:5000\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
